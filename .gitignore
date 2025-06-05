@@ -1,0 +1,62 @@
+# Flutter/Dart specific ignores
+.dart_tool/
+.flutter-plugins/
+.flutter-plugins-dependencies/
+.idea/ 
+.vscode/ 
+build/
+*.iml
+*.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.DS_Store # macOS specific
+Thumbs.db # Windows specific
+
+# Android specific ignores
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.gradle/
+android/app/src/debug/
+android/app/src/profile/
+android/app/src/main/res/raw/ 
+android/app/src/main/assets/flutter_assets/ 
+android/app/src/main/kotlin/com/example/guacamayo_marketing_app/MainActivity.kt.bak 
+
+# iOS specific ignores
+ios/.symlinks/
+ios/Flutter/.last_build_id
+ios/Flutter/.ios_symbols
+ios/Flutter/.ios_symbols_arch
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Pods/
+ios/.bundle/
+ios/.generated/
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcshareddata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/build/
+
+# Keystore and sensitive files (CRUCIAL for release builds)
+android/key.properties 
+android/app/*.jks 
+android/app/*.keystore 
+android/app/guacamayo_upload_keystore.jks 
+
+# Backend (FastAPI) specific ignores
+backend/.venv/ # Entorno virtual de Python
+backend/__pycache__/
+backend/*.pyc
+backend/.env 
+backend/venv/ 
+
+# Supabase CLI specific ignores
+supabase/.env.local 
+supabase/config.toml 
+supabase/migrations/ 
