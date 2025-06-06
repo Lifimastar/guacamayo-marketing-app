@@ -84,7 +84,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final paymentIntentData = await _createPaymentIntent(
         widget.booking.id,
         widget.booking.totalPrice,
-        'usd', 
+        'usd',
       );
 
       await stripe.Stripe.instance.initPaymentSheet(
@@ -98,7 +98,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
       _displayPaymentSheet();
     } on Exception catch (e) {
-      if (!mounted) return; 
+      if (!mounted) return;
       logger.e('Error initializing Payment Sheet: $e', error: e);
       setState(() {
         _paymentErrorMessage = 'Error al preparar el pago: ${e.toString()}';
@@ -117,6 +117,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _displayPaymentSheet() async {
+    if (!mounted) return;
     setState(() {
       _isProcessingPayment = true;
     });
@@ -125,20 +126,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
       await stripe.Stripe.instance.presentPaymentSheet();
 
       logger.i('Payment Sheet presented successfully.');
-      if (!mounted) return; 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pago exitoso! Procesando...'),
-          backgroundColor: Colors.green,
+          content: Text('Pago exitoso! Confirmando tu reserva...'),
+          backgroundColor: AppColors.successColor,
         ),
       );
 
       Future.delayed(const Duration(seconds: 2), () {
-        if (!mounted) return; 
+        if (!mounted) return;
         Navigator.pop(context);
       });
     } on Exception catch (e) {
-      logger.e('Error displaying Payment Sheet: $e', error: e);
+      if (!mounted) return;
       String message = 'Error en el pago: ${e.toString()}';
       if (e is stripe.StripeException) {
         message = 'Error en el pago: ${e.error.localizedMessage}';
@@ -150,12 +151,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
         _paymentErrorMessage = message;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
+        SnackBar(content: Text(message), backgroundColor: AppColors.errorColor),
       );
     } finally {
-      setState(() {
-        _isProcessingPayment = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isProcessingPayment = false;
+        });
+      }
     }
   }
 

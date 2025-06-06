@@ -18,6 +18,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   List<Booking> _allBookings = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _needsRefresh = true;
 
   final List<String> _bookingStatuses = [
     'checkout_pending',
@@ -35,7 +36,15 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   @override
   void initState() {
     super.initState();
-    _fetchAllBookings();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_needsRefresh) {
+      _needsRefresh = false;
+      _fetchAllBookings();
+    }
   }
 
   // obtener todos los bookings
@@ -73,6 +82,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _needsRefresh = false;
         });
       }
     }
@@ -132,7 +142,9 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       logger.e('Unexpected error updating booking status: $e', error: e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ocurrió un error inesperado al actualizar estado: ${e.toString()}'),
+          content: Text(
+            'Ocurrió un error inesperado al actualizar estado: ${e.toString()}',
+          ),
           backgroundColor: AppColors.errorColor,
         ),
       );
@@ -140,6 +152,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       if (mounted) {
         setState(() {
           _isUpdatingStatus.remove(bookingId);
+          _needsRefresh = true;
         });
       }
     }
@@ -225,6 +238,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       if (mounted) {
         setState(() {
           _isDeletingBooking.remove(bookingId);
+          _needsRefresh = true;
         });
       }
     }

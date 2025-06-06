@@ -21,6 +21,7 @@ class MainShell extends ConsumerStatefulWidget {
 
 class MainShellState extends ConsumerState<MainShell> {
   int _selectedIndex = 0;
+  late PageController _pageController;
   List<Widget> _clientScreens = [];
   List<BottomNavigationBarItem> _clientNavItems = [];
   List<Widget> _adminScreens = [];
@@ -29,7 +30,23 @@ class MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _selectedIndex);
     _setupNavigation();
+
+    _pageController.addListener(() {
+      if (_pageController.page?.round() != _selectedIndex) {
+        setState(() {
+          _selectedIndex = _pageController.page!.round();
+        });
+        _refreshCurrentScreen();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _setupNavigation() {
@@ -116,6 +133,13 @@ class MainShellState extends ConsumerState<MainShell> {
     setState(() {
       _selectedIndex = index;
     });
+    _pageController.jumpToPage(index);
+  }
+
+  void _refreshCurrentScreen() {
+    final currentScreens =
+        ref.read(authProvider).isAdmin ? _adminScreens : _clientScreens;
+    final currentScreen = currentScreens[_selectedIndex];
   }
 
   @override
@@ -131,7 +155,15 @@ class MainShellState extends ConsumerState<MainShell> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: currentScreens),
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        children: currentScreens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: currentNavItems,
         currentIndex: _selectedIndex,

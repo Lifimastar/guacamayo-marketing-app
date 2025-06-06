@@ -22,21 +22,22 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
   String? _currentUserId;
   RealtimeChannel? _bookingsChannel;
   final Map<String, bool> _isProcessingBookingAction = {};
+  bool _needsRefresh = true;
 
   @override
   void initState() {
     super.initState();
-    _currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    _fetchUserBookings();
+    _currentUserId = _supabase.auth.currentUser?.id;
     _setupBookingsSubscription();
   }
 
   @override
-  void dispose() {
-    if (_bookingsChannel != null) {
-      _supabase.removeChannel(_bookingsChannel!);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_needsRefresh) {
+      _needsRefresh = false;
+      _fetchUserBookings();
     }
-    super.dispose();
   }
 
   Future<void> _fetchUserBookings() async {
@@ -69,9 +70,12 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
             'Ocurrió un error inesperado al cargar las reservas: $e';
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _needsRefresh = false;
+        });
+      }
     }
   }
 
@@ -180,7 +184,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
           .eq('id', bookingId);
       if (!mounted) return;
 
-      logger.i('Booking $bookingId cancelled succesfully.');
+      logger.i('Booking $bookingId cancelled succesfully by user.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Reserva cancelada con exito.'),
@@ -209,6 +213,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
       if (mounted) {
         setState(() {
           _isProcessingBookingAction.remove(bookingId);
+          _needsRefresh = true;
         });
       }
     }
