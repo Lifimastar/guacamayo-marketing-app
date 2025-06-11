@@ -15,10 +15,13 @@ class AdminBookingsPage extends StatefulWidget {
 
 class _AdminBookingsPageState extends State<AdminBookingsPage> {
   final _supabase = Supabase.instance.client;
+  final TextEditingController _searchController = TextEditingController();
   List<Booking> _allBookings = [];
+  List<Booking> _filteredBookings = [];
   bool _isLoading = true;
-  String? _errorMessage;
   bool _needsRefresh = true;
+  String? _selectedStatusFilter;
+  String? _errorMessage;
 
   final List<String> _bookingStatuses = [
     'checkout_pending',
@@ -36,6 +39,15 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   @override
   void initState() {
     super.initState();
+    _fetchAllBookings();
+    _searchController.addListener(_filterBookings);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterBookings);
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -64,7 +76,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
 
       _allBookings =
           bookingJsonList.map((json) => Booking.fromJson(json)).toList();
-      _allBookings.sort((a, b) => b.bookedAt.compareTo(a.bookedAt));
+      _filterBookings();
     } on PostgrestException catch (e) {
       if (!mounted) return;
       logger.e('Error fetching all bookings: ${e.message}', error: e);
@@ -88,6 +100,28 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
     }
   }
 
+  // Metodo para filtrar la lista de reservas
+  void _filterBookings() {
+    final searchQuery = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredBookings =
+          _allBookings.where((booking) {
+            final customerName = booking.userProfile?.name.toLowerCase() ?? '';
+            final serviceName = booking.service?.name.toLowerCase() ?? '';
+            final status = booking.status.toLowerCase();
+
+            final matchesSearch =
+                customerName.contains(searchQuery) ||
+                serviceName.contains(searchQuery);
+            final matchesStatus =
+                _selectedStatusFilter == null ||
+                status == _selectedStatusFilter;
+
+            return matchesSearch && matchesStatus;
+          }).toList();
+    });
+  }
+
   // Metodo para actualizar el estado de una reserva
   Future<void> _updateBookingStatus(
     Booking bookingToUpdate,
@@ -108,13 +142,8 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
 
       final index = _allBookings.indexWhere((b) => b.id == bookingId);
       if (index != -1) {
-        final updatedBookings = List<Booking>.from(_allBookings);
-        updatedBookings[index] = _allBookings[index].copyWith(
-          status: newStatus,
-        );
-        setState(() {
-          _allBookings = updatedBookings;
-        });
+        _allBookings[index] = _allBookings[index].copyWith(status: newStatus);
+        _filterBookings();
         final serviceName =
             bookingToUpdate.service?.name ?? 'Servicio Desconocido';
         final customerName =
@@ -206,9 +235,9 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       await _supabase.from('bookings').delete().eq('id', bookingId);
       if (!mounted) return;
 
-      setState(() {
-        _allBookings.removeWhere((b) => b.id == bookingId);
-      });
+      _allBookings.removeWhere((b) => b.id == bookingId);
+      _filterBookings();
+
       logger.i('Booking $bookingId deleted successfully.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -274,70 +303,135 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Panel de Administracion de Reservas')),
-      body:
-          _isLoading && _allBookings.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-              ? Center(
-                child: Text(
-                  _errorMessage!,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.error,
+      body: Column(
+        children: [
+          // Seccion de Busqueda y Filtro
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Campo de Busqueda
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por Cliente o Servicio',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon:
+                        _searchController.text.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterBookings();
+                              },
+                            )
+                            : null,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              )
-              : _allBookings.isEmpty
-              ? Center(
-                child:
-                    _isLoading
-                        ? const Text('Cargando reservas...')
-                        : const Text('No hay reservas pendientes.'),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(8.0),
-                itemCount: _allBookings.length,
-                itemBuilder: (context, index) {
-                  final booking = _allBookings[index];
-                  final serviceName =
-                      booking.service?.name ?? 'Servicio Desconocido';
-                  final customerName =
-                      booking.userProfile?.name ?? 'Cliente Desconocido';
-                  final isDeleting = _isDeletingBooking[booking.id] ?? false;
+                const SizedBox(height: 16),
+                // Filtro por Estado
+                DropdownButtonFormField<String>(
+                  value: _selectedStatusFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Filtrar por Estado',
+                    border: OutlineInputBorder(),
+                  ),
+                  hint: const Text('Todos los Estado'),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null,
+                      child: Text('Todos los Estados'),
+                    ),
+                    ..._bookingStatuses.map((String status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(_getStatusText(status)),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedStatusFilter = newValue;
+                    });
+                    _filterBookings();
+                  },
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
 
-                  return Card(
-                    child: BookingCardContent(
-                      booking: booking,
-                      isAdminView: true,
-                      onEntregablesTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => AdminDeliverablesPage(
-                                  bookingId: booking.id,
+          // Lista de Reservas
+          Expanded(
+            child:
+                _isLoading && _allBookings.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
+                    ? Center(
+                      child: Text(
+                        _errorMessage!,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.error,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                    : _allBookings.isEmpty
+                    ? Center(
+                      child:
+                          _isLoading
+                              ? const Text('Cargando reservas...')
+                              : const Text('No hay reservas pendientes.'),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(8.0),
+                      itemCount: _allBookings.length,
+                      itemBuilder: (context, index) {
+                        final booking = _allBookings[index];
+                        final serviceName =
+                            booking.service?.name ?? 'Servicio Desconocido';
+                        final customerName =
+                            booking.userProfile?.name ?? 'Cliente Desconocido';
+                        final isDeleting =
+                            _isDeletingBooking[booking.id] ?? false;
+
+                        return Card(
+                          child: BookingCardContent(
+                            booking: booking,
+                            isAdminView: true,
+                            onEntregablesTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => AdminDeliverablesPage(
+                                        bookingId: booking.id,
+                                      ),
                                 ),
+                              );
+                            },
+                            bookingStatuses: _bookingStatuses,
+                            isUpdatingStatus: _isUpdatingStatus,
+                            onStatusChange:
+                                (bookingIdFromCallback, newStatus) =>
+                                    _updateBookingStatus(booking, newStatus),
+                            onDeleteBookingTap:
+                                isDeleting
+                                    ? null
+                                    : () => _deleteBooking(
+                                      booking.id,
+                                      serviceName,
+                                      customerName,
+                                    ),
+                            isProcessingBookingAction: _isDeletingBooking,
                           ),
                         );
                       },
-                      bookingStatuses: _bookingStatuses,
-                      isUpdatingStatus: _isUpdatingStatus,
-                      onStatusChange:
-                          (bookingIdFromCallback, newStatus) =>
-                              _updateBookingStatus(booking, newStatus),
-                      onDeleteBookingTap:
-                          isDeleting
-                              ? null
-                              : () => _deleteBooking(
-                                booking.id,
-                                serviceName,
-                                customerName,
-                              ),
-                      isProcessingBookingAction: _isDeletingBooking,
                     ),
-                  );
-                },
-              ),
+          ),
+        ],
+      ),
     );
   }
 }

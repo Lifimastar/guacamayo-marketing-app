@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -77,9 +76,7 @@ class AuthNotifier extends StateNotifier<UserState> {
       case AuthChangeEvent.tokenRefreshed:
         if (session != null) {
           state = state.copyWith(session: session);
-          if (state.profile == null ||
-              state.profile!.id != session.user.id ||
-              event == AuthChangeEvent.userUpdated) {
+          if (state.profile == null || state.profile!.id != session.user.id) {
             logger.i(
               'AuthNotifier: Session active, loading/reloading profile...',
             );

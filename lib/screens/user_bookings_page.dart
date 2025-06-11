@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guacamayo_marketing_app/screens/leave_review_page.dart';
 import 'package:guacamayo_marketing_app/screens/user_deliverables_page.dart';
+import 'package:guacamayo_marketing_app/utils/app_messages.dart';
 import 'package:guacamayo_marketing_app/widgets/booking_card_content.dart';
 import '../utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -171,7 +172,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
     if (confirmed != true) {
       if (mounted) {
         setState(() {
-          _isLoading = true;
+          _isProcessingBookingAction.remove(bookingId);
         });
         return;
       }
@@ -187,7 +188,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
       logger.i('Booking $bookingId cancelled succesfully by user.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Reserva cancelada con exito.'),
+          content: Text(AppMessages.bookingCancelledSuccess),
           backgroundColor: AppColors.successColor,
         ),
       );
@@ -196,7 +197,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
       logger.e('Error cancelling booking by user: ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cancelar reserva: ${e.message}'),
+          content: Text('${AppMessages.bookingCancelError}: ${e.message}'),
           backgroundColor: AppColors.errorColor,
         ),
       );
@@ -205,7 +206,7 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
       logger.e('Unexpected error cancelling booking by user: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Ocurrio un error inesperado: ${e.toString()}'),
+          content: Text('${AppMessages.unexpectedError}: ${e.toString()}'),
           backgroundColor: AppColors.errorColor,
         ),
       );
@@ -213,7 +214,6 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
       if (mounted) {
         setState(() {
           _isProcessingBookingAction.remove(bookingId);
-          _needsRefresh = true;
         });
       }
     }

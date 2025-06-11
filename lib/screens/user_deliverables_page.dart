@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:guacamayo_marketing_app/style/app_colors.dart';
+import 'package:guacamayo_marketing_app/utils/app_messages.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/deliverable.dart';
@@ -18,7 +20,6 @@ class _UserDeliverablesPageState extends State<UserDeliverablesPage> {
   bool _isLoading = true;
   String? _errorMessage;
   Logger logger = Logger();
-
   final String _bucketName = 'deliverables';
 
   @override
@@ -58,6 +59,7 @@ class _UserDeliverablesPageState extends State<UserDeliverablesPage> {
   }
 
   Future<void> _openDeliverable(Deliverable deliverable) async {
+    if (!mounted) return;
     Uri? urlToLaunch;
 
     logger.i('Attempting to open deliverable: ${deliverable.title}');
@@ -90,25 +92,26 @@ class _UserDeliverablesPageState extends State<UserDeliverablesPage> {
         logger.i('Generated signed URL: $signedUrlString');
         urlToLaunch = Uri.parse(signedUrlString);
       } on StorageException catch (e) {
-        logger.e('StorageException generating signed URL: ${e.message}');
+        logger.e(
+          'StorageException generating signed URL: ${e.message}',
+          error: e,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Error al acceder al archivo (Storage): ${e.message}',
-              ),
+              content: Text('${AppMessages.fileAccessError}: ${e.message}'),
+              backgroundColor: AppColors.errorColor,
             ),
           );
         }
         return;
       } catch (e) {
-        logger.e('Unexpected error generating signed URL: $e');
+        logger.e('Unexpected error generating signed URL: $e', error: e);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Ocurrió un error inesperado al acceder al archivo: $e',
-              ),
+              content: Text('${AppMessages.unexpectedError}: ${e.toString()}'),
+              backgroundColor: AppColors.errorColor,
             ),
           );
         }
@@ -118,25 +121,31 @@ class _UserDeliverablesPageState extends State<UserDeliverablesPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Este entregable no tiene un archivo asociado.'),
-            backgroundColor: Colors.orange,
+            content: Text(AppMessages.invalidUrl),
+            backgroundColor: AppColors.statusPending,
           ),
         );
       }
       return;
     }
-    if (await canLaunchUrl(urlToLaunch)) {
-      await launchUrl(urlToLaunch, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo abrir el recurso: $urlToLaunch'),
-          ),
-        );
+
+    if (urlToLaunch != null) {
+      if (await canLaunchUrl(urlToLaunch)) {
+        await launchUrl(urlToLaunch, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${AppMessages.fileAccessError}: No se pudo abrir el recurso.',
+              ),
+              backgroundColor: AppColors.errorColor,
+            ),
+          );
+        }
       }
     }
-    }
+  }
 
   Widget _buildDeliverableIcon(Deliverable deliverable) {
     if (deliverable.fileUrl != null && deliverable.fileUrl!.isNotEmpty) {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../utils/logger.dart';
 import '../models/booking.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
@@ -9,16 +11,16 @@ import '../style/app_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/service.dart';
 
-class CheckoutPage extends StatefulWidget {
+class CheckoutPage extends ConsumerStatefulWidget {
   final Booking booking;
   final Service service;
   const CheckoutPage({super.key, required this.booking, required this.service});
 
   @override
-  State<CheckoutPage> createState() => _CheckoutPageState();
+  CheckoutPageState createState() => CheckoutPageState();
 }
 
-class _CheckoutPageState extends State<CheckoutPage> {
+class CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _supabase = Supabase.instance.client;
   bool _isProcessingPayment = false;
   bool _isCancelling = false;
@@ -29,11 +31,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     double amount,
     String currency,
   ) async {
-    final url = Uri.parse(paymentIntentBackendUrl);
+    final url = Uri.parse('$backendUrl/create-payment-intent');
+    final jwt = ref.read(authProvider).session?.accessToken;
+
+    if (jwt == null) {
+      throw Exception('User not authenticated');
+    }
 
     final headers = {
       'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey,
+      'Authorization': 'Bearer $jwt',
     };
 
     final body = json.encode({

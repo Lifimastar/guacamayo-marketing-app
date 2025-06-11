@@ -156,52 +156,52 @@ SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY # Clave service_role_ke
 * Actualiza la variable `STRIPE_WEBHOOK_SIGNING_SECRET` en las variables de entorno de tu backend desplegado (y en tu `.env` local).
 
 ### 5. Configuración de la Aplicación Flutter
-Navegar al Directorio de la Aplicación:
+1. **Navegar al Directorio de la Aplicación:**
+```
 cd guacamayo-marketing-app
-Use code with caution.
-Bash
-Instalar Dependencias:
+```
+2. **Instalar Dependencias:**
+```
 flutter pub get
-Use code with caution.
-Bash
-Configurar lib/utils/config.dart:
-Abre este archivo y reemplaza los placeholders con tus claves y URLs reales:
+```
+3. Configurar `lib/utils/config.dart`:
+    * Abre este archivo y reemplaza los placeholders con tus claves y URLs reales:
+```
 const String supabaseUrl = 'YOUR_SUPABASE_URL';
 const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
 const String stripePublishableKey = 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY';
 const String paymentIntentBackendUrl = 'YOUR_EDGE_FUNCTION_URL'; // URL de la Edge Function
 const String adminBackendUrl = 'YOUR_FASTAPI_BACKEND_URL'; // URL de tu backend de FastAPI en Render
-Use code with caution.
-Dart
-Configurar Icono y Splash Screen:
-Asegúrate de tener tu app_icon.png y splash_logo.png (y splash_logo_android12.png) en assets/icon/.
-En pubspec.yaml, configura flutter_launcher_icons y flutter_native_splash.
-Ejecuta:
+```
+4. **Configurar Icono y Splash Screen:**
+    * Asegúrate de tener tu `app_icon.png` y `splash_logo.png` (y `splash_logo_android12.png`) en `assets/icon/`.
+    * En `pubspec.yaml`, configura `flutter_launcher_icons` y `flutter_native_splash`.
+    * Ejecuta:
+```
 flutter pub run flutter_launcher_icons
 flutter pub run flutter_native_splash:create
-Use code with caution.
-Bash
-Configurar Nombre y ID de Aplicación (Android):
-En android/app/src/main/AndroidManifest.xml, actualiza android:label.
-En android/app/build.gradle.kts, actualiza applicationId.
-Configurar Firma de Release (Android):
-Genera tu keystore (.jks) si no lo has hecho, y guárdalo en android/app/.
-Crea android/key.properties (en la carpeta android/) y configúralo con tus contraseñas y la ruta al .jks.
-Asegúrate de que android/app/build.gradle.kts esté configurado para usar key.properties y firmar el build de release.
-¡Asegúrate de que key.properties y el archivo .jks estén en tu .gitignore!
-6. Ejecutar la Aplicación
+```
+5. **Configurar Nombre y ID de Aplicación (Android):**
+    * En `android/app/src/main/AndroidManifest.xml`, actualiza `android:label`.
+    * En `android/app/build.gradle.kts`, actualiza `applicationId`.
+6. **Configurar Firma de Release (Android):**
+    * Genera tu keystore (`.jks`) si no lo has hecho, y guárdalo en `android/app/`.
+    * Crea `android/key.properties` (en la carpeta `android/`) y configúralo con tus contraseñas y la ruta al `.jks`.
+    * Asegúrate de que `android/app/build.gradle.kts` esté configurado para usar `key.properties` y firmar el build de release.
+    * **¡Asegúrate de que `key.properties` y el archivo `.jks` estén en tu `.gitignore`!**
+### 6. Ejecutar la Aplicación
+```
 flutter clean
 flutter pub get
 flutter run
-Use code with caution.
-Bash
-🧪 Pruebas
+```
+## 🧪 Pruebas
 Realiza pruebas exhaustivas de todos los flujos de cliente y administrador para asegurar que todas las funcionalidades operan correctamente y que la experiencia de usuario es fluida.
-📦 Compilar para Lanzamiento
+## 📦 Compilar para Lanzamiento
 Para generar el Android App Bundle (AAB) firmado, listo para subir a Google Play Console:
+```
 flutter build appbundle --release
-Use code with caution.
-Bash
-El archivo AAB se encontrará en build/app/outputs/bundle/release/app-release.aab.
-🤝 Contribución
-Si este proyecto es de código abierto o si hay pautas para colaboradores, inclúyelas aquí.
+```
+El archivo AAB se encontrará en `build/app/outputs/bundle/release/app-release.aab`.
+## 🤝 Contribución
+

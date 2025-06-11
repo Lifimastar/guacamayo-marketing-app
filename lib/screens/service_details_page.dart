@@ -310,7 +310,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                               );
                             },
                           ))
-                      : Center(
+                      : const Center(
                         child: Icon(
                           Icons.image_outlined,
                           size: 60,

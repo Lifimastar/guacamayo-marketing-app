@@ -79,9 +79,11 @@ class _AdminDeliverablesPageState extends State<AdminDeliverablesPage> {
   }
 
   Future<void> _addDeliverable() async {
+    if (!mounted) return;
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     final fileUrl = _fileUrlController.text.trim();
+
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -100,29 +102,37 @@ class _AdminDeliverablesPageState extends State<AdminDeliverablesPage> {
       );
       return;
     }
+
     setState(() {
       _isLoading = true;
     });
+
     String? finalFileUrl;
     String? finalStoragePathForDB;
+
     try {
       if (_selectedFile != null) {
         final file = _selectedFile!;
         final String fileName =
             '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-        final String relativePathInBucket = '${widget.bookingId}/$fileName';
-        setState(() {
-          _isLoading = true;
-        });
+        final String pathForUpload = '${widget.bookingId}/$fileName';
 
         logger.i(
-          'Uploading to Bucket: $_bucketName, Relative Path for Upload: $relativePathInBucket',
+          'Uploading to Bucket: $_bucketName, Relative Path for Upload: $pathForUpload',
         );
-        final String uploadedKey = await _supabase.storage
-            .from(_bucketName)
-            .upload(relativePathInBucket, file);
 
-        finalStoragePathForDB = uploadedKey;
+        final String uploadedObjectKeyWithBucketPrefix = await _supabase.storage
+            .from(_bucketName)
+            .upload(pathForUpload, file);
+
+        if (uploadedObjectKeyWithBucketPrefix.startsWith('$_bucketName/')) {
+          finalStoragePathForDB = uploadedObjectKeyWithBucketPrefix.substring(
+            _bucketName.length + 1,
+          );
+        } else {
+          finalStoragePathForDB = uploadedObjectKeyWithBucketPrefix;
+        }
+
         logger.i(
           'File uploaded. Path stored in DB will be: $finalStoragePathForDB',
         );
@@ -186,9 +196,11 @@ class _AdminDeliverablesPageState extends State<AdminDeliverablesPage> {
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

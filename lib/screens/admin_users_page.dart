@@ -191,7 +191,7 @@ class AdminUsersPageState extends ConsumerState<AdminUsersPage> {
     });
 
     try {
-      final url = Uri.parse('$adminBackendUrl/admin/users/$userId');
+      final url = Uri.parse('$backendUrl/admin/users/$userId');
       final response = await http.delete(
         url,
         headers: {'Authorization': 'Bearer $_adminJwt'},
