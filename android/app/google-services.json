@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "480962960119",
+    "project_id": "guacamayo-marketing-solutions",
+    "storage_bucket": "guacamayo-marketing-solutions.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480962960119:android:04d97260a2aedeef2811f2",
+        "android_client_info": {
+          "package_name": "com.guacamayomarketing.marketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkkIkVE4ttPcBujLKv8Cam3FaTr3150wE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

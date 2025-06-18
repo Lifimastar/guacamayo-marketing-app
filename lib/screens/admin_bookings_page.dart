@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:guacamayo_marketing_app/screens/admin_deliverables_page.dart';
+import 'package:guacamayo_marketing_app/screens/booking_details_page.dart';
 import 'package:guacamayo_marketing_app/widgets/booking_card_content.dart';
+import 'package:guacamayo_marketing_app/widgets/booking_card_skeleton.dart';
+import 'package:guacamayo_marketing_app/widgets/empty_state_widget.dart';
+import '../utils/booking_status_utils.dart';
 import '../utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking.dart';
@@ -16,12 +21,11 @@ class AdminBookingsPage extends StatefulWidget {
 class _AdminBookingsPageState extends State<AdminBookingsPage> {
   final _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
-  List<Booking> _allBookings = [];
-  List<Booking> _filteredBookings = [];
+  List<Booking> _bookings = [];
   bool _isLoading = true;
-  bool _needsRefresh = true;
   String? _selectedStatusFilter;
   String? _errorMessage;
+  Timer? _debounce;
 
   final List<String> _bookingStatuses = [
     'checkout_pending',
@@ -39,28 +43,24 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
   @override
   void initState() {
     super.initState();
-    _fetchAllBookings();
-    _searchController.addListener(_filterBookings);
+    _fetchAdminBookings();
+    _searchController.addListener(() {
+      if (_debounce?.isActive ?? false) _debounce!.cancel();
+      _debounce = Timer(const Duration(milliseconds: 500), () {
+        _fetchAdminBookings();
+      });
+    });
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_filterBookings);
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_needsRefresh) {
-      _needsRefresh = false;
-      _fetchAllBookings();
-    }
-  }
-
   // obtener todos los bookings
-  Future<void> _fetchAllBookings() async {
+  Future<void> _fetchAdminBookings() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
@@ -68,58 +68,52 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
     });
 
     try {
-      final List<Map<String, dynamic>> bookingJsonList = await _supabase
-          .from('bookings')
-          .select('*, services(*), profiles(id, name, role)')
-          .order('booked_at', ascending: false);
+      dynamic query;
+      final searchQuery = _searchController.text.trim();
+
+      if (searchQuery.isNotEmpty) {
+        query = _supabase
+            .rpc('search_bookings', params: {'search_term': searchQuery})
+            .select('*, services(*), profiles(id, name, role)');
+      } else {
+        query = _supabase
+            .from('bookings')
+            .select('*, services(*), profiles(id, name, role)');
+      }
+
+      if (_selectedStatusFilter != null) {
+        query = query.eq('status', _selectedStatusFilter!);
+      }
+
+      final response = await query.order('booked_at', ascending: false);
+
+      final bookingJsonList = List<Map<String, dynamic>>.from(response);
+
       if (!mounted) return;
 
-      _allBookings =
-          bookingJsonList.map((json) => Booking.fromJson(json)).toList();
-      _filterBookings();
+      setState(() {
+        _bookings =
+            bookingJsonList.map((json) => Booking.fromJson(json)).toList();
+      });
     } on PostgrestException catch (e) {
       if (!mounted) return;
-      logger.e('Error fetching all bookings: ${e.message}', error: e);
+      logger.e('Error fetching admin bookings: ${e.message}', error: e);
       setState(() {
-        _errorMessage = 'Error al cargar todas las reservas: ${e.message}';
+        _errorMessage = 'Error al cargar las reservas: ${e.message}';
       });
     } catch (e) {
       if (!mounted) return;
-      logger.e('Unexpected error fetching all bookings: $e', error: e);
+      logger.e('Unexpected error fetching admin bookings: $e', error: e);
       setState(() {
-        _errorMessage =
-            'Ocurrió un error inesperado al cargar todas las reservas: ${e.toString()}';
+        _errorMessage = 'Ocurrió un error inesperado: ${e.toString()}';
       });
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _needsRefresh = false;
         });
       }
     }
-  }
-
-  // Metodo para filtrar la lista de reservas
-  void _filterBookings() {
-    final searchQuery = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredBookings =
-          _allBookings.where((booking) {
-            final customerName = booking.userProfile?.name.toLowerCase() ?? '';
-            final serviceName = booking.service?.name.toLowerCase() ?? '';
-            final status = booking.status.toLowerCase();
-
-            final matchesSearch =
-                customerName.contains(searchQuery) ||
-                serviceName.contains(searchQuery);
-            final matchesStatus =
-                _selectedStatusFilter == null ||
-                status == _selectedStatusFilter;
-
-            return matchesSearch && matchesStatus;
-          }).toList();
-    });
   }
 
   // Metodo para actualizar el estado de una reserva
@@ -140,10 +134,11 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
           .eq('id', bookingId);
       if (!mounted) return;
 
-      final index = _allBookings.indexWhere((b) => b.id == bookingId);
+      final index = _bookings.indexWhere((b) => b.id == bookingToUpdate.id);
       if (index != -1) {
-        _allBookings[index] = _allBookings[index].copyWith(status: newStatus);
-        _filterBookings();
+        setState(() {
+          _bookings[index] = _bookings[index].copyWith(status: newStatus);
+        });
         final serviceName =
             bookingToUpdate.service?.name ?? 'Servicio Desconocido';
         final customerName =
@@ -151,7 +146,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Estado de la reserva para "$serviceName" (Cliente: $customerName actualizado a "${_getStatusText(newStatus)}".',
+              'Estado de la reserva para "$serviceName" (Cliente: $customerName actualizado a "${BookingStatusUtils.getStatusText(newStatus)}".',
             ),
             backgroundColor: AppColors.successColor,
           ),
@@ -181,7 +176,6 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       if (mounted) {
         setState(() {
           _isUpdatingStatus.remove(bookingId);
-          _needsRefresh = true;
         });
       }
     }
@@ -235,8 +229,9 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       await _supabase.from('bookings').delete().eq('id', bookingId);
       if (!mounted) return;
 
-      _allBookings.removeWhere((b) => b.id == bookingId);
-      _filterBookings();
+      setState(() {
+        _bookings.removeWhere((b) => b.id == bookingId);
+      });
 
       logger.i('Booking $bookingId deleted successfully.');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -267,31 +262,8 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
       if (mounted) {
         setState(() {
           _isDeletingBooking.remove(bookingId);
-          _needsRefresh = true;
         });
       }
-    }
-  }
-
-  // Metodo para obtener el texto legible del estado
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'checkout_pending':
-        return 'Pago Pendiente';
-      case 'pending':
-        return 'Pendiente';
-      case 'confirmed':
-        return 'Confirmada';
-      case 'in_progress':
-        return 'En Progreso';
-      case 'completed':
-        return 'Completada';
-      case 'cancelled':
-        return 'Cancelada';
-      case 'payment_failed':
-        return 'Pago Fallido';
-      default:
-        return status.toUpperCase();
     }
   }
 
@@ -320,10 +292,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
                         _searchController.text.isNotEmpty
                             ? IconButton(
                               icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filterBookings();
-                              },
+                              onPressed: () => _searchController.clear(),
                             )
                             : null,
                   ),
@@ -346,92 +315,111 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
                     ..._bookingStatuses.map((String status) {
                       return DropdownMenuItem<String>(
                         value: status,
-                        child: Text(_getStatusText(status)),
+                        child: Text(BookingStatusUtils.getStatusText(status)),
                       );
-                    }).toList(),
+                    }),
                   ],
                   onChanged: (String? newValue) {
                     setState(() {
                       _selectedStatusFilter = newValue;
                     });
-                    _filterBookings();
+                    _fetchAdminBookings();
                   },
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
-
           // Lista de Reservas
-          Expanded(
-            child:
-                _isLoading && _allBookings.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : _errorMessage != null
-                    ? Center(
-                      child: Text(
-                        _errorMessage!,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.error,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                    : _allBookings.isEmpty
-                    ? Center(
-                      child:
-                          _isLoading
-                              ? const Text('Cargando reservas...')
-                              : const Text('No hay reservas pendientes.'),
-                    )
-                    : ListView.builder(
-                      padding: const EdgeInsets.all(8.0),
-                      itemCount: _allBookings.length,
-                      itemBuilder: (context, index) {
-                        final booking = _allBookings[index];
-                        final serviceName =
-                            booking.service?.name ?? 'Servicio Desconocido';
-                        final customerName =
-                            booking.userProfile?.name ?? 'Cliente Desconocido';
-                        final isDeleting =
-                            _isDeletingBooking[booking.id] ?? false;
-
-                        return Card(
-                          child: BookingCardContent(
-                            booking: booking,
-                            isAdminView: true,
-                            onEntregablesTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => AdminDeliverablesPage(
-                                        bookingId: booking.id,
-                                      ),
-                                ),
-                              );
-                            },
-                            bookingStatuses: _bookingStatuses,
-                            isUpdatingStatus: _isUpdatingStatus,
-                            onStatusChange:
-                                (bookingIdFromCallback, newStatus) =>
-                                    _updateBookingStatus(booking, newStatus),
-                            onDeleteBookingTap:
-                                isDeleting
-                                    ? null
-                                    : () => _deleteBooking(
-                                      booking.id,
-                                      serviceName,
-                                      customerName,
-                                    ),
-                            isProcessingBookingAction: _isDeletingBooking,
-                          ),
-                        );
-                      },
-                    ),
-          ),
+          Expanded(child: _buildContent(textTheme, colorScheme)),
         ],
       ),
+    );
+  }
+
+  Widget _buildContent(TextTheme textTheme, ColorScheme colorScheme) {
+    if (_isLoading) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(8.0),
+        itemCount: 5,
+        itemBuilder:
+            (context, index) => const Card(child: BookingCardSkeleton()),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return EmptyStateWidget(
+        icon: Icons.error_outline,
+        title: 'Error al Cargar',
+        message: _errorMessage!,
+        action: ElevatedButton.icon(
+          onPressed: _fetchAdminBookings,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Reintentar'),
+        ),
+      );
+    }
+
+    if (_bookings.isEmpty) {
+      return const EmptyStateWidget(
+        icon: Icons.search_off,
+        title: 'No se encontraron reservas',
+        message: 'Prueba a cambiar los filtros o el término de búsqueda.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8.0),
+      itemCount: _bookings.length,
+      itemBuilder: (context, index) {
+        final booking = _bookings[index];
+        final serviceName = booking.service?.name ?? 'Servicio Desconocido';
+        final customerName = booking.userProfile?.name ?? 'Cliente Desconocido';
+        final isDeleting = _isDeletingBooking[booking.id] ?? false;
+
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => BookingDetailsPage(
+                        bookingId: booking.id,
+                        isAdminView: true,
+                      ),
+                ),
+              );
+            },
+            child: BookingCardContent(
+              booking: booking,
+              isAdminView: true,
+              onEntregablesTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) =>
+                            AdminDeliverablesPage(bookingId: booking.id),
+                  ),
+                );
+              },
+              bookingStatuses: _bookingStatuses,
+              isUpdatingStatus: _isUpdatingStatus,
+              onStatusChange:
+                  (bookingIdFromCallback, newStatus) =>
+                      _updateBookingStatus(booking, newStatus),
+              onDeleteBookingTap:
+                  isDeleting
+                      ? null
+                      : () =>
+                          _deleteBooking(booking.id, serviceName, customerName),
+              isProcessingBookingAction: _isDeletingBooking,
+            ),
+          ),
+        );
+      },
     );
   }
 }

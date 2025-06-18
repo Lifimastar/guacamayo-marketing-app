@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../utils/logger.dart';
+import '../utils/booking_status_utils.dart';
 import '../models/booking.dart';
 import '../style/app_colors.dart';
 
@@ -29,49 +30,6 @@ class BookingCardContent extends StatelessWidget {
     this.onCancelBookingTap,
     this.onDeleteBookingTap,
   });
-
-  // Método para obtener el texto legible del estado
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'checkout_pending':
-        return 'Pago Pendiente';
-      case 'pending':
-        return 'Pendiente';
-      case 'confirmed':
-        return 'Confirmada';
-      case 'in_progress':
-        return 'En Progreso';
-      case 'completed':
-        return 'Completada';
-      case 'cancelled':
-        return 'Cancelada';
-      case 'payment_failed':
-        return 'Pago Fallido';
-      default:
-        return 'Estado Desconocido';
-    }
-  }
-
-  // Método para obtener el color del estado
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'checkout_pending':
-        return AppColors.statusCheckoutPending;
-      case 'pending':
-        return AppColors.statusPending;
-      case 'confirmed':
-        return AppColors.statusConfirmed;
-      case 'in_progress':
-        return AppColors.statusInProgress;
-      case 'completed':
-        return AppColors.statusCompleted;
-      case 'cancelled':
-      case 'payment_failed':
-        return AppColors.statusPaymentFailed;
-      default:
-        return Colors.black;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -180,9 +138,9 @@ class BookingCardContent extends StatelessWidget {
 
           // Estado de la reserva
           Text(
-            'Estado: ${_getStatusText(booking.status)}',
+            'Estado: ${BookingStatusUtils.getStatusText(booking.status)}',
             style: textTheme.bodyLarge?.copyWith(
-              color: _getStatusColor(booking.status),
+              color: BookingStatusUtils.getStatusColor(booking.status),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -231,7 +189,7 @@ class BookingCardContent extends StatelessWidget {
                                 return DropdownMenuItem<String>(
                                   value: status,
                                   child: Text(
-                                    _getStatusText(status),
+                                    BookingStatusUtils.getStatusText(status),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );

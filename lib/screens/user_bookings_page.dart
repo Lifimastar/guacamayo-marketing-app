@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:guacamayo_marketing_app/screens/booking_details_page.dart';
 import 'package:guacamayo_marketing_app/screens/leave_review_page.dart';
 import 'package:guacamayo_marketing_app/screens/user_deliverables_page.dart';
 import 'package:guacamayo_marketing_app/utils/app_messages.dart';
 import 'package:guacamayo_marketing_app/widgets/booking_card_content.dart';
+import 'package:guacamayo_marketing_app/widgets/empty_state_widget.dart';
 import '../utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking.dart';
 import '../style/app_colors.dart';
+import '../widgets/booking_card_skeleton.dart';
 
 class UserBookingsPage extends StatefulWidget {
   const UserBookingsPage({super.key});
@@ -225,76 +229,127 @@ class _UserBookingsPageState extends State<UserBookingsPage> {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mis Reservas')),
-      body:
-          _isLoading && _bookings.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-              ? Center(
-                child: Text(
-                  _errorMessage!,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.error,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              )
-              : _bookings.isEmpty
-              ? Center(
-                child:
-                    _isLoading
-                        ? const Text('Cargando reservas...')
-                        : const Text('No has realizado ninguna reserva aún.'),
-              )
-              : ListView.builder(
-                padding: const EdgeInsets.all(8.0),
-                itemCount: _bookings.length,
-                itemBuilder: (context, index) {
-                  final booking = _bookings[index];
-                  final serviceName = booking.service?.name ?? 'este servicio';
+    // --- Logica de la UI ---
+    Widget buildContent() {
+      if (_isLoading && _bookings.isEmpty) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(8.0),
+          itemCount: 4,
+          itemBuilder:
+              (context, index) => const Card(
+                clipBehavior: Clip.antiAlias,
+                child: BookingCardSkeleton(),
+              ),
+        );
+      }
 
-                  return Card(
-                    child: BookingCardContent(
-                      booking: booking,
-                      isAdminView: false,
-                      onEntregablesTap: () {
+      if (_errorMessage != null) {
+        // TODO: Reemplazar con un widget de estado de error más amigable
+        return Center(
+          child: Text(
+            _errorMessage!,
+            style: textTheme.bodyMedium?.copyWith(color: colorScheme.error),
+            textAlign: TextAlign.center,
+          ),
+        );
+      }
+
+      if (_bookings.isEmpty) {
+        return const EmptyStateWidget(
+          icon: Icons.inbox_outlined,
+          title: 'Aun no tienes reservas',
+          message:
+              'Cuando reserves un servicio, aparecerá aquí. ¡Explora nuestro catálogo para empezar!',
+        );
+      }
+
+      return AnimationLimiter(
+        child: ListView.builder(
+          padding: const EdgeInsets.all(8.0),
+          itemCount: _bookings.length,
+          itemBuilder: (context, index) {
+            final booking = _bookings[index];
+            final serviceName = booking.service?.name ?? 'este servicio';
+
+            return AnimationConfiguration.staggeredList(
+              position: index,
+              duration: const Duration(milliseconds: 375),
+              child: SlideAnimation(
+                verticalOffset: 50.0,
+                child: FadeInAnimation(
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder:
-                                (context) =>
-                                    UserDeliverablesPage(bookingId: booking.id),
+                                (context) => BookingDetailsPage(
+                                  bookingId: booking.id,
+                                  isAdminView: false,
+                                ),
                           ),
                         );
                       },
-                      onLeaveReviewTap:
-                          (booking.status == 'completed' && !booking.hasReview)
-                              ? () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) =>
-                                            LeaveReviewPage(booking: booking),
+                      child: BookingCardContent(
+                        booking: booking,
+                        isAdminView: false,
+                        onEntregablesTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => UserDeliverablesPage(
+                                    bookingId: booking.id,
                                   ),
-                                );
-                                _fetchUserBookings();
-                              }
-                              : null,
-                      // callback para cancelar
-                      onCancelBookingTap:
-                          (booking.status == 'checkout_pending' ||
-                                  booking.status == 'pending' ||
-                                  booking.status == 'confirmed')
-                              ? () =>
-                                  _cancelBookingByUser(booking.id, serviceName)
-                              : null,
-                      isProcessingBookingAction: _isProcessingBookingAction,
+                            ),
+                          );
+                        },
+                        onLeaveReviewTap:
+                            (booking.status == 'completed' &&
+                                    !booking.hasReview)
+                                ? () async {
+                                  final reviewSubmitted =
+                                      await Navigator.push<bool>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => LeaveReviewPage(
+                                                booking: booking,
+                                              ),
+                                        ),
+                                      );
+                                  if (reviewSubmitted == true && mounted) {
+                                    _fetchUserBookings();
+                                  }
+                                }
+                                : null,
+                        // callback para cancelar
+                        onCancelBookingTap:
+                            (booking.status == 'checkout_pending' ||
+                                    booking.status == 'pending' ||
+                                    booking.status == 'confirmed')
+                                ? () => _cancelBookingByUser(
+                                  booking.id,
+                                  serviceName,
+                                )
+                                : null,
+                        isProcessingBookingAction: _isProcessingBookingAction,
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
+            );
+          },
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mis Reservas')),
+      body: buildContent(),
     );
   }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:guacamayo_marketing_app/screens/admin_dashboard_page.dart';
 import 'package:guacamayo_marketing_app/screens/contact_us_page.dart';
 import '../providers/auth_provider.dart';
 import 'home_page.dart';
 import 'services_catalog_page.dart';
 import 'user_bookings_page.dart';
-
 import 'admin_bookings_page.dart';
 import 'admin_services_page.dart';
 import 'admin_users_page.dart';
@@ -88,7 +88,7 @@ class MainShellState extends ConsumerState<MainShell> {
 
     // Pantallas e Items para Administradores
     _adminScreens = [
-      const HomePage(),
+      const AdminDashboardPage(),
       const AdminBookingsPage(),
       const AdminServicesPage(),
       const AdminUsersPage(),

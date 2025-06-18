@@ -81,10 +81,11 @@ class Booking {
             : null;
 
     final reviewJson = json['reviews'];
-    final associatedReviewData =
-        reviewJson != null && reviewJson is Map<String, dynamic>
-            ? reviewJson
-            : null;
+    Map<String, dynamic>? associatedReviewData;
+
+    if (reviewJson != null && reviewJson is Map<String, dynamic>) {
+      associatedReviewData = reviewJson;
+    }
 
     return Booking(
       id: id as String,

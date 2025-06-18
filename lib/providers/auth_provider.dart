@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
+import '../services//notification_service.dart';
 
 class UserState {
   final Session? session;
@@ -25,6 +26,7 @@ class UserState {
 
 class AuthNotifier extends StateNotifier<UserState> {
   final Logger logger = Logger();
+  final NotificationService _notificationService = NotificationService();
 
   AuthNotifier() : super(UserState(isLoading: true)) {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
@@ -73,8 +75,9 @@ class AuthNotifier extends StateNotifier<UserState> {
     switch (event) {
       case AuthChangeEvent.initialSession:
       case AuthChangeEvent.signedIn:
-      case AuthChangeEvent.tokenRefreshed:
         if (session != null) {
+          _notificationService.initialize();
+
           state = state.copyWith(session: session);
           if (state.profile == null || state.profile!.id != session.user.id) {
             logger.i(
@@ -85,7 +88,7 @@ class AuthNotifier extends StateNotifier<UserState> {
             }
             _loadProfile(session.user.id);
           } else {
-            logger.i('AuthNotifier: Session active, profile already loaded.');
+            logger.i('AuthNotifier: Session active, profile already loaded');
             state = state.copyWith(isLoading: false);
           }
         } else {
@@ -93,6 +96,12 @@ class AuthNotifier extends StateNotifier<UserState> {
             'AuthNotifier: Auth event $event with null session. Clearing state.',
           );
           state = UserState(session: null, profile: null, isLoading: false);
+        }
+        break;
+
+      case AuthChangeEvent.tokenRefreshed:
+        if (session != null) {
+          state = state.copyWith(session: session);
         }
         break;
 
@@ -151,6 +160,12 @@ class AuthNotifier extends StateNotifier<UserState> {
     } catch (e) {
       logger.e('Unexpected error loading profile for user $userId: $e');
       state = state.copyWith(profile: null, isLoading: false);
+    }
+  }
+
+  void forceProfileReload() {
+    if (state.session != null) {
+      _handleAuthStateChange(AuthChangeEvent.userUpdated, state.session);
     }
   }
 }

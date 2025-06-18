@@ -58,7 +58,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
         ),
       );
 
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } on PostgrestException catch (e) {
       logger.e('Error submitting review: ${e.message}', error: e);
       ScaffoldMessenger.of(context).showSnackBar(
