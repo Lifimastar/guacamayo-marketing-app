@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:guacamayo_marketing_app/screens/main_shell.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,9 @@ final supabase = Supabase.instance.client;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // variables de entorno
+  await dotenv.load(fileName: ".env");
 
   // firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
