@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:guacamayo_marketing_app/providers/auth_provider.dart';
+import 'package:guacamayo_marketing_app/screens/favorites_page.dart';
 import '../models/profile.dart';
+import '../providers/theme_provider.dart';
 import '../utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../style/app_colors.dart';
@@ -223,6 +225,57 @@ class ProfilePage extends ConsumerWidget {
     }
   }
 
+  // --- CAMBIAR TEMA ---
+  void _showThemeDialog(BuildContext context, WidgetRef ref) {
+    final currentTheme = ref.read(themeProvider);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Seleccionar Tema'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ThemeMode>(
+                title: const Text('Claro'),
+                value: ThemeMode.light,
+                groupValue: currentTheme,
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(themeProvider.notifier).changeTheme(value);
+                  }
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Oscuro'),
+                value: ThemeMode.dark,
+                groupValue: currentTheme,
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(themeProvider.notifier).changeTheme(value);
+                  }
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Automático'),
+                value: ThemeMode.system,
+                groupValue: currentTheme,
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(themeProvider.notifier).changeTheme(value);
+                  }
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
@@ -281,6 +334,26 @@ class ProfilePage extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // Opciones de Perfil
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: const Text('Mis Favoritos'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FavoritesPage(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.brightness_6_outlined),
+              title: const Text('Apariencia'),
+              onTap: () {
+                _showThemeDialog(context, ref);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Editar Nombre'),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:guacamayo_marketing_app/providers/theme_provider.dart';
 import 'package:guacamayo_marketing_app/screens/main_shell.dart';
+import 'package:guacamayo_marketing_app/services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -18,6 +21,9 @@ final supabase = Supabase.instance.client;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+
   // variables de entorno
   await dotenv.load(fileName: ".env");
 
@@ -34,7 +40,12 @@ Future<void> main() async {
   // stripe
   Stripe.publishableKey = stripePublishableKey;
 
-  runApp(const ProviderScope(child: MainApp()));
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MainApp(),
+    ),
+  );
 }
 
 class MainApp extends ConsumerWidget {
@@ -42,18 +53,20 @@ class MainApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userState = ref.watch(authProvider);
+    final themeMode = ref.watch(themeProvider);
+    final authState = ref.watch(authProvider);
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Guacamayo Marketing App',
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       home:
-          userState.isLoading
+          authState.isLoading
               ? const Scaffold(body: Center(child: CircularProgressIndicator()))
-              : userState.isAuthenticated
+              : authState.isAuthenticated
               ? const MainShell()
               : const AuthPage(),
     );

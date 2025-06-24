@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:guacamayo_marketing_app/providers/favorites_provider.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
@@ -25,10 +26,11 @@ class UserState {
 }
 
 class AuthNotifier extends StateNotifier<UserState> {
+  final Ref ref;
   final Logger logger = Logger();
   final NotificationService _notificationService = NotificationService();
 
-  AuthNotifier() : super(UserState(isLoading: true)) {
+  AuthNotifier(this.ref) : super(UserState(isLoading: true)) {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
       (data) {
         final AuthChangeEvent event = data.event;
@@ -87,6 +89,7 @@ class AuthNotifier extends StateNotifier<UserState> {
               state = state.copyWith(isLoading: true);
             }
             _loadProfile(session.user.id);
+            ref.read(favoritesProvider.notifier).loadFavorites();
           } else {
             logger.i('AuthNotifier: Session active, profile already loaded');
             state = state.copyWith(isLoading: false);
@@ -106,6 +109,7 @@ class AuthNotifier extends StateNotifier<UserState> {
         break;
 
       case AuthChangeEvent.signedOut:
+        ref.read(favoritesProvider.notifier).loadFavorites();
         logger.i('AuthNotifier: User signed out or deleted. Clearing state.');
         state = UserState(session: null, profile: null, isLoading: false);
         break;
@@ -171,5 +175,5 @@ class AuthNotifier extends StateNotifier<UserState> {
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, UserState>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref);
 });

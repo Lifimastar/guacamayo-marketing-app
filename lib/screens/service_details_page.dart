@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:guacamayo_marketing_app/providers/favorites_provider.dart';
 import 'package:guacamayo_marketing_app/screens/checkout_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/service.dart';
@@ -8,15 +10,15 @@ import '../style/app_colors.dart';
 import '../utils/logger.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class ServiceDetailsPage extends StatefulWidget {
+class ServiceDetailsPage extends ConsumerStatefulWidget {
   final Service service;
   const ServiceDetailsPage({super.key, required this.service});
 
   @override
-  State<ServiceDetailsPage> createState() => _ServiceDetailsPageState();
+  ConsumerState<ServiceDetailsPage> createState() => _ServiceDetailsPageState();
 }
 
-class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
+class _ServiceDetailsPageState extends ConsumerState<ServiceDetailsPage> {
   final _supabase = Supabase.instance.client;
   List<Review> _reviews = [];
   bool _isLoadingReviews = true;
@@ -250,8 +252,27 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
+    final favoriteServiceIds = ref.watch(favoritesProvider);
+    final isFavorite = favoriteServiceIds.contains(widget.service.id);
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.service.name)),
+      appBar: AppBar(
+        title: Text(widget.service.name),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.redAccent : null,
+            ),
+            onPressed: () {
+              ref
+                  .read(favoritesProvider.notifier)
+                  .toggleFavorite(widget.service.id);
+            },
+            tooltip: 'Añadir a favoritos',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(0),
         child: Column(

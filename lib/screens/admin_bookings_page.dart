@@ -10,6 +10,7 @@ import '../utils/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking.dart';
 import '../style/app_colors.dart';
+import '../services/api_service.dart';
 
 class AdminBookingsPage extends StatefulWidget {
   const AdminBookingsPage({super.key});
@@ -39,6 +40,7 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
 
   final Map<String, bool> _isUpdatingStatus = {};
   final Map<String, bool> _isDeletingBooking = {};
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -133,6 +135,18 @@ class _AdminBookingsPageState extends State<AdminBookingsPage> {
           .update({'status': newStatus})
           .eq('id', bookingId);
       if (!mounted) return;
+
+      if (newStatus == 'confirmed' ||
+          newStatus == 'in_progress' ||
+          newStatus == 'completed') {
+        logger.i('Estado actualizado. Disparando notificacion...');
+        await _apiService.sendBookingStatusNotification(
+          userId: bookingToUpdate.userId,
+          bookingId: bookingToUpdate.id,
+          serviceName: bookingToUpdate.service?.name ?? 'tu servicio',
+          newStatusReadable: BookingStatusUtils.getStatusText(newStatus),
+        );
+      }
 
       final index = _bookings.indexWhere((b) => b.id == bookingToUpdate.id);
       if (index != -1) {
